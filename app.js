@@ -378,6 +378,9 @@ document.addEventListener("DOMContentLoaded", () => {
   window.spaceDb.listenPlayers((players) => {
     if (!admin.playersList || !admin.playersCount) return;
 
+    console.log("👀 [디버그] 관리자 화면 - 실시간 참가자 명단 갱신 신호 수신. 인원수:", players.length);
+    console.log("👀 [디버그] 수신된 전체 참가자 리스트:", players);
+
     admin.playersCount.textContent = players.length;
     admin.playersList.innerHTML = "";
 
@@ -491,6 +494,7 @@ document.addEventListener("DOMContentLoaded", () => {
       lobby.pveBtn.textContent = "🤖 대기 중...";
     }
 
+    console.log(`👉 [디버그] 'JOIN MATCH QUEUE' 클릭됨. 닉네임: ${state.nickname}, 모드: ${state.mode}`);
     // Trigger local space database adapter
     window.spaceDb.joinQueue(state.nickname, isPvE, onMatchFound);
   }
