@@ -63,7 +63,9 @@ document.addEventListener("DOMContentLoaded", () => {
     matchingBtn: document.getElementById("matching-btn"),
     queueStatus: document.getElementById("queue-status"),
     statusText: document.getElementById("status-text"),
-    forceMatchBtn: document.getElementById("force-match-btn")
+    forceMatchBtn: document.getElementById("force-match-btn"),
+    waitingCount: document.getElementById("waiting-count"),
+    waitingList: document.getElementById("waiting-list")
   };
 
   const hud = {
@@ -315,6 +317,17 @@ document.addEventListener("DOMContentLoaded", () => {
     
     lobby.pveBtn.disabled = true;
     lobby.matchingBtn.disabled = true;
+
+    // ** [참가 상태 대기 중 UI 로직 추가] **
+    if (!isPvE) {
+      lobby.matchingBtn.textContent = "📡 대기 중...";
+      lobby.matchingBtn.style.background = "rgba(0, 243, 255, 0.15)";
+      lobby.matchingBtn.style.color = "var(--cyan-main)";
+      lobby.matchingBtn.style.border = "1px solid var(--cyan-main)";
+      lobby.matchingBtn.style.boxShadow = "0 0 15px var(--cyan-glow)";
+    } else {
+      lobby.pveBtn.textContent = "🤖 대기 중...";
+    }
 
     // Trigger local space database adapter
     window.spaceDb.joinQueue(state.nickname, isPvE, onMatchFound);
@@ -696,7 +709,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // CANVAS RENDERING ENGINE
   // ==========================================
   function drawCoordinatesPlane() {
-    if (!state.isPlaying) return;
+    if (!state.isPlaying) {
+      requestAnimationFrame(drawCoordinatesPlane);
+      return;
+    }
 
     // Clear Canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1020,10 +1036,49 @@ document.addEventListener("DOMContentLoaded", () => {
     // UI resets
     lobby.pveBtn.removeAttribute("disabled");
     lobby.matchingBtn.removeAttribute("disabled");
+    lobby.pveBtn.textContent = "🚀 PLAY VS AI BOT (싱글 연습)";
+    lobby.matchingBtn.textContent = "📡 JOIN MATCH QUEUE (실시간 대전)";
+    lobby.matchingBtn.style = "";
+    lobby.pveBtn.style = "";
+    
     lobby.queueStatus.classList.add("hidden");
     lobby.nicknameInput.value = "";
     
     showView("lobby");
+  });
+
+  // ** [실시간 대기열 명단 업데이트 리스너 연결] **
+  window.spaceDb.listenQueue((waitingPlayers) => {
+    if (!lobby.waitingList || !lobby.waitingCount) return;
+    
+    // 대기 함장 수 갱신
+    lobby.waitingCount.textContent = waitingPlayers.length;
+    
+    // 대기열 목록 초기화
+    lobby.waitingList.innerHTML = "";
+    
+    if (waitingPlayers.length === 0) {
+      const emptyLi = document.createElement("li");
+      emptyLi.className = "empty-msg";
+      emptyLi.textContent = "현재 대기 중인 함장이 없습니다.";
+      lobby.waitingList.appendChild(emptyLi);
+    } else {
+      waitingPlayers.forEach(player => {
+        const li = document.createElement("li");
+        
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "name";
+        nameSpan.textContent = `🚀 ${player.nickname}`;
+        
+        const statusSpan = document.createElement("span");
+        statusSpan.className = "status-tag";
+        statusSpan.textContent = "WAITING";
+        
+        li.appendChild(nameSpan);
+        li.appendChild(statusSpan);
+        lobby.waitingList.appendChild(li);
+      });
+    }
   });
 
 });

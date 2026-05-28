@@ -42,7 +42,36 @@ class CockpitDbSimulator {
     this.simulatedOpponent = null;
     this.aiInterval = null;
     
+    // 실시간 대기열 데이터 관리용 속성 추가
+    this.waitingList = [];
+    this.queueListeners = [];
+    this.mockQueueInterval = null;
+    
     console.log("📡 [Network Manager] Local space simulation system initialized.");
+  }
+
+  // 실시간 대기열 정보 구독 (선생님 제어판 출력용)
+  // --- REAL FIREBASE FIRESTORE CODE GUIDE ---
+  /*
+  listenQueueRealtime(callback) {
+    return db.collection("users")
+      .where("status", "==", "waiting")
+      .orderBy("joinedAt", "asc")
+      .onSnapshot((snapshot) => {
+        const list = [];
+        snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
+        callback(list);
+      });
+  }
+  */
+  listenQueue(callback) {
+    this.queueListeners.push(callback);
+    callback(this.waitingList);
+  }
+
+  // 대기열 변동 상황 전파
+  notifyQueueChanged() {
+    this.queueListeners.forEach(callback => callback(this.waitingList));
   }
 
   // 닉네임 등록 및 대기열 참가
@@ -51,11 +80,16 @@ class CockpitDbSimulator {
       id: "player_" + Math.random().toString(36).substr(2, 9),
       nickname: nickname || "무명 함장",
       score: 0,
-      isHost: true
+      isHost: true,
+      status: "waiting"
     };
 
     if (isPvE) {
       // AI 봇과의 PVE 모드 즉시 매칭
+      // 대기열 목록에 임시 추가 후 즉시 해제
+      this.waitingList.push(this.currentUser);
+      this.notifyQueueChanged();
+
       setTimeout(() => {
         this.simulatedOpponent = {
           id: "bot_alpha",
@@ -63,24 +97,80 @@ class CockpitDbSimulator {
           score: 0,
           isBot: true
         };
+        // 대기열에서 제거
+        this.waitingList = this.waitingList.filter(p => p.id !== this.currentUser.id);
+        this.notifyQueueChanged();
+
         this.createMockRoom(this.currentUser, this.simulatedOpponent, true, onMatchFound);
       }, 1000);
     } else {
       // 온라인 실시간 대전 대기열 모드 시뮬레이션
-      // 대기열 로직 작동 (2초 후 가상의 플레이어 또는 다른 탭 플레이어와 자동 매칭)
+      // 1. 로그인한 사용자 대기열 리스트에 추가
+      this.waitingList.push(this.currentUser);
+      
+      // 2. 교실 내 다른 학생들이 접속하는 것처럼 몇 개의 가상 학생 등록 유도 (재미/타격감 극대화)
+      const mockInitialNames = ["시그마 오리온", "가우스 슈터"];
+      mockInitialNames.forEach((name, i) => {
+        setTimeout(() => {
+          if (!this.waitingList.some(p => p.nickname === name) && this.currentUser) {
+            this.waitingList.push({
+              id: "mock_p_" + i,
+              nickname: name,
+              score: 0,
+              isHost: false,
+              status: "waiting"
+            });
+            this.notifyQueueChanged();
+          }
+        }, 300 * (i + 1));
+      });
+
+      this.notifyQueueChanged();
+
+      // 3. 주기적으로 대기열 명단에 가상 학생이 추가되는 시뮬레이터 실행
+      this.mockQueueInterval = setInterval(() => {
+        if (this.waitingList.length > 0 && this.waitingList.length < 6) {
+          const simulatedStudents = ["제타 함장", "피타고라스", "라이프니츠", "노이만 윙"];
+          const selectedName = simulatedStudents[Math.floor(Math.random() * simulatedStudents.length)];
+          
+          if (!this.waitingList.some(p => p.nickname === selectedName)) {
+            this.waitingList.push({
+              id: "mock_p_" + Math.random().toString(36).substr(2, 5),
+              nickname: selectedName,
+              score: 0,
+              isHost: false,
+              status: "waiting"
+            });
+            this.notifyQueueChanged();
+          }
+        }
+      }, 3500);
+
+      // 대기열 로직 작동 (4초 후 매칭 완료되어 룸으로 입장)
       setTimeout(() => {
-        const mockOpponents = ["제타 함장", "시그마 오리온", "가우스 슈터", "피타고라스 윙"];
-        const randomOppName = mockOpponents[Math.floor(Math.random() * mockOpponents.length)];
-        
-        this.simulatedOpponent = {
-          id: "player_opp_" + Math.random().toString(36).substr(2, 9),
-          nickname: randomOppName,
-          score: 0,
-          isBot: false
-        };
-        
-        this.createMockRoom(this.currentUser, this.simulatedOpponent, false, onMatchFound);
-      }, 2000);
+        if (!this.currentRoom && this.currentUser) {
+          // 대기열 중 나를 제외한 대기 함장 중 하나 매칭
+          const pool = this.waitingList.filter(p => p.id !== this.currentUser.id);
+          const opponent = pool.length > 0 ? pool[0] : {
+            id: "player_opp_backup",
+            nickname: "백업 에디슨",
+            score: 0,
+            isBot: false
+          };
+
+          // 대기열 제거
+          this.waitingList = this.waitingList.filter(p => p.id !== this.currentUser.id && p.id !== opponent.id);
+          this.notifyQueueChanged();
+
+          if (this.mockQueueInterval) {
+            clearInterval(this.mockQueueInterval);
+            this.mockQueueInterval = null;
+          }
+
+          this.simulatedOpponent = opponent;
+          this.createMockRoom(this.currentUser, this.simulatedOpponent, false, onMatchFound);
+        }
+      }, 5000); // 5초 동안 대기열 명단을 실시간으로 볼 기회 제공 후 매칭 진행
     }
   }
 

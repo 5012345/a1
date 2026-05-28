@@ -315,6 +315,77 @@ body {
   color: var(--text-muted);
 }
 
+.queue-list-container {
+  margin-top: 16px;
+  border-top: 1px dashed rgba(255, 208, 0, 0.15);
+  padding-top: 14px;
+}
+
+.queue-list-container h4 {
+  font-size: 0.9rem;
+  color: var(--cyan-main);
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.waiting-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 120px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.waiting-list::-webkit-scrollbar {
+  width: 4px;
+}
+.waiting-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.waiting-list li {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: slideUp 0.3s ease;
+}
+
+.waiting-list li .name {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.waiting-list li .status-tag {
+  background: rgba(0, 243, 255, 0.08);
+  border: 1px solid rgba(0, 243, 255, 0.25);
+  color: var(--cyan-main);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-shadow: 0 0 5px var(--cyan-glow);
+}
+
+.waiting-list li.empty-msg {
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+}
+
 .instructions-footer {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
