@@ -52,21 +52,9 @@
             <span id="status-text">우주 통신 연결 중...</span>
           </div>
 
-          <!-- Teacher / Admin Panel -->
-          <div class="teacher-panel glass">
-            <h3>🛡️ 관리자 / 선생님 전용 제어판</h3>
-            <div class="panel-controls">
-              <button id="force-match-btn" class="btn border-btn small">⚡ 강제 무작위 매칭 실행</button>
-              <p class="desc">대기 중인 학생들을 즉시 1:1 무작위 방으로 자동 매칭시킵니다. (홀수인 경우 AI 매칭)</p>
-            </div>
-            
-            <!-- Real-time Queue List Container -->
-            <div class="queue-list-container">
-              <h4>📡 실시간 대기 중인 함장 명단 (<span id="waiting-count">0</span>명)</h4>
-              <ul id="waiting-list" class="waiting-list">
-                <li class="empty-msg">현재 대기 중인 함장이 없습니다.</li>
-              </ul>
-            </div>
+          <!-- Admin Access Button -->
+          <div class="admin-access-box">
+            <button id="admin-login-trigger-btn" class="btn border-btn small font-orbitron">⚙️ ADMIN LOGIN (관리자 로그인)</button>
           </div>
         </div>
         
@@ -229,6 +217,60 @@
         <div class="result-actions">
           <button id="return-lobby-btn" class="btn primary font-orbitron">🛰️ RETURN TO LOBBY (로비로 돌아가기)</button>
         </div>
+      </div>
+    </div>
+
+    <!-- 🔐 ADMIN LOGIN PASSWORD MODAL -->
+    <div id="admin-login-modal" class="modal-backdrop hidden">
+      <div class="modal-card glass animate-slide-up">
+        <h3>🛡️ 사령부 보안인증</h3>
+        <p class="modal-desc">선생님/관리자 인증 비밀번호를 입력하십시오.</p>
+        <div class="input-group">
+          <input type="password" id="admin-password-input" placeholder="비밀번호 입력..." maxlength="10">
+          <p id="admin-login-error" class="error-msg hidden">⚠️ 비밀번호가 올바르지 않습니다.</p>
+        </div>
+        <div class="modal-actions">
+          <button id="admin-modal-cancel-btn" class="btn danger small">취소</button>
+          <button id="admin-modal-confirm-btn" class="btn primary small font-orbitron">CONFIRM</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🛡️ DEDICATED ADMIN CONTROL SCREEN VIEW -->
+    <div id="admin-screen" class="view-panel">
+      <div class="admin-card glass animate-slide-up">
+        <header class="admin-header">
+          <span class="badge">COMMAND CONTROL CENTRE</span>
+          <h2>🛡️ 일차함수 블록 슈팅 관리자 화면</h2>
+          <p class="subtitle">실시간 함장 모니터링 및 세션 통제 센터</p>
+        </header>
+
+        <main class="admin-content">
+          <!-- Active Participants List -->
+          <div class="admin-panel-section players-section glass">
+            <h3>👥 실시간 함장 접속 현황 (<span id="admin-players-count">0</span>명)</h3>
+            <ul id="admin-players-list" class="admin-players-list">
+              <li class="empty-msg">현재 접속 중인 함장이 없습니다.</li>
+            </ul>
+          </div>
+
+          <!-- Controls Section -->
+          <div class="admin-panel-section controls-section glass">
+            <h3>⚙️ 전역 시스템 통제</h3>
+            <div class="control-grid">
+              <button id="admin-force-match-btn" class="btn primary font-orbitron">⚡ 무작위 매칭 시작</button>
+              <button id="admin-reset-btn" class="btn danger font-orbitron">🧹 시스템 초기화</button>
+            </div>
+            <p class="section-desc">
+              <strong>무작위 매칭:</strong> 대기 중인 모든 함장들을 1:1로 신속 매칭합니다.<br>
+              <strong>시스템 초기화:</strong> 모든 방과 대기열을 강제 초기화하고 플레이어들을 홈 화면으로 귀환시킵니다.
+            </p>
+          </div>
+        </main>
+
+        <footer class="admin-footer">
+          <button id="admin-exit-btn" class="btn border-btn small font-orbitron">🛰️ EXIT CONTROL PANEL (관리자 종료)</button>
+        </footer>
       </div>
     </div>
 

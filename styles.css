@@ -285,105 +285,281 @@ body {
   display: none !important;
 }
 
-/* Teacher Board inside Lobby */
-.teacher-panel {
-  margin-top: 10px;
-  background: rgba(255, 208, 0, 0.03);
-  border: 1px solid rgba(255, 208, 0, 0.1);
-  padding: 20px;
-  text-align: left;
-  border-radius: 12px;
+/* Admin Access trigger button wrapper */
+.admin-access-box {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
 }
 
-.teacher-panel h3 {
+#admin-login-trigger-btn {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+
+#admin-login-trigger-btn:hover {
+  border-color: var(--yellow-main);
   color: var(--yellow-main);
+  background: rgba(255, 208, 0, 0.03);
+}
+
+/* 🔐 PASSWORD SECURITY MODAL BACKDROP */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(3, 4, 11, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.modal-card {
+  max-width: 400px;
+  width: 90%;
+  padding: 30px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  border: 1px solid rgba(255, 208, 0, 0.2) !important;
+  box-shadow: 0 0 30px rgba(255, 208, 0, 0.1);
+}
+
+.modal-card h3 {
+  color: var(--yellow-main);
+  font-size: 1.3rem;
+  letter-spacing: 1px;
+}
+
+.modal-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.modal-actions .btn {
+  padding: 10px 20px;
+  font-size: 0.85rem;
+}
+
+.error-msg {
+  color: #ff3e3e;
+  font-size: 0.8rem;
+  margin-top: 4px;
+  text-align: left;
+}
+
+/* 🛡️ DEDICATED ADMIN PANEL SCREEN VIEW */
+#admin-screen {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.admin-card {
+  max-width: 900px;
+  width: 100%;
+  padding: 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.admin-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 16px;
+}
+
+.admin-header h2 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: var(--yellow-main);
+  text-shadow: 0 0 10px var(--yellow-glow);
+  margin-top: 6px;
+}
+
+.admin-header .subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.admin-content {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 20px;
+}
+
+.admin-panel-section {
+  padding: 20px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.admin-panel-section h3 {
   font-size: 1rem;
-  margin-bottom: 12px;
+  color: var(--cyan-main);
+  margin-bottom: 16px;
+  border-bottom: 1px dashed rgba(0, 243, 255, 0.15);
+  padding-bottom: 8px;
+}
+
+/* Participants list item */
+.admin-players-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.admin-players-list::-webkit-scrollbar {
+  width: 4px;
+}
+.admin-players-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.admin-players-list li {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.25s;
+}
+
+.admin-players-list li:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.admin-players-list li .player-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-players-list li .player-name-text {
+  font-weight: 700;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-players-list li .player-actions {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.panel-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.panel-controls .desc {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.queue-list-container {
-  margin-top: 16px;
-  border-top: 1px dashed rgba(255, 208, 0, 0.15);
-  padding-top: 14px;
-}
-
-.queue-list-container h4 {
-  font-size: 0.9rem;
-  color: var(--cyan-main);
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.waiting-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 120px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.waiting-list::-webkit-scrollbar {
-  width: 4px;
-}
-.waiting-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-
-.waiting-list li {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 8px 12px;
-  border-radius: 8px;
+/* Inline edit inputs */
+.admin-edit-input {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--cyan-main);
+  border-radius: 6px;
+  color: #fff;
+  padding: 4px 8px;
   font-size: 0.85rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  animation: slideUp 0.3s ease;
-}
-
-.waiting-list li .name {
+  outline: none;
   font-weight: 700;
-  color: var(--text-main);
+  flex: 1;
+  min-width: 0;
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
 }
 
-.waiting-list li .status-tag {
-  background: rgba(0, 243, 255, 0.08);
-  border: 1px solid rgba(0, 243, 255, 0.25);
-  color: var(--cyan-main);
+.btn-inline {
+  padding: 4px 8px !important;
+  font-size: 0.75rem !important;
+  border-radius: 6px !important;
+}
+
+/* Status tags for dashboard */
+.admin-status-tag {
   font-family: 'Orbitron', sans-serif;
   font-size: 0.65rem;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.admin-status-tag.waiting {
+  background: rgba(0, 243, 255, 0.08);
+  border: 1px solid rgba(0, 243, 255, 0.25);
+  color: var(--cyan-main);
   text-shadow: 0 0 5px var(--cyan-glow);
 }
 
-.waiting-list li.empty-msg {
-  justify-content: center;
-  color: var(--text-muted);
+.admin-status-tag.playing {
+  background: rgba(57, 255, 20, 0.08);
+  border: 1px solid rgba(57, 255, 20, 0.25);
+  color: var(--green-main);
+  text-shadow: 0 0 5px var(--green-glow);
+}
+
+/* System Controls section */
+.controls-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.control-grid .btn {
+  width: 100%;
+}
+
+.section-desc {
   font-size: 0.8rem;
-  border: none;
-  background: transparent;
-  padding: 8px 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.section-desc strong {
+  color: var(--text-main);
+}
+
+.admin-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .instructions-footer {

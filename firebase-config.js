@@ -48,6 +48,10 @@ class CockpitDbSimulator {
     this.queueListeners = [];
     this.mockQueueInterval = null;
     
+    // 실시간 관리자용 전체 참가자 데이터 관리 속성 추가
+    this.playersList = [];
+    this.adminListeners = [];
+    
     console.log("📡 [Network Manager] Local space simulation system initialized.");
   }
 
@@ -75,6 +79,40 @@ class CockpitDbSimulator {
     this.queueListeners.forEach(callback => callback(this.waitingList));
   }
 
+  // 관리자 모니터링 리스너 등록
+  listenPlayers(callback) {
+    this.adminListeners.push(callback);
+    callback(this.playersList);
+  }
+
+  // 관리자 참가자 명단 변동 전파
+  notifyPlayersChanged() {
+    this.adminListeners.forEach(callback => callback(this.playersList));
+  }
+
+  // 관리자용 신규 함장 등록 도우미
+  registerPlayerInAdmin(player) {
+    if (!this.playersList.some(p => p.id === player.id)) {
+      this.playersList.push({
+        id: player.id,
+        nickname: player.nickname,
+        status: player.status || "waiting",
+        room: null
+      });
+      this.notifyPlayersChanged();
+    }
+  }
+
+  // 함장 세션 상태 갱신 도우미
+  updatePlayerStatusInAdmin(playerId, status, roomId = null) {
+    const player = this.playersList.find(p => p.id === playerId);
+    if (player) {
+      player.status = status;
+      player.room = roomId;
+      this.notifyPlayersChanged();
+    }
+  }
+
   // 닉네임 등록 및 대기열 참가
   joinQueue(nickname, isPvE = false, onMatchFound) {
     this.currentUser = {
@@ -84,6 +122,9 @@ class CockpitDbSimulator {
       isHost: true,
       status: "waiting"
     };
+
+    // 관리자 접속자 리스트에 즉시 등록
+    this.registerPlayerInAdmin(this.currentUser);
 
     if (isPvE) {
       // AI 봇과의 PVE 모드 즉시 매칭
@@ -98,6 +139,7 @@ class CockpitDbSimulator {
           score: 0,
           isBot: true
         };
+        
         // 대기열에서 제거
         this.waitingList = this.waitingList.filter(p => p.id !== this.currentUser.id);
         this.notifyQueueChanged();
@@ -114,13 +156,15 @@ class CockpitDbSimulator {
       mockInitialNames.forEach((name, i) => {
         setTimeout(() => {
           if (!this.waitingList.some(p => p.nickname === name) && this.currentUser) {
-            this.waitingList.push({
+            const mockPlayer = {
               id: "mock_p_" + i,
               nickname: name,
               score: 0,
               isHost: false,
               status: "waiting"
-            });
+            };
+            this.waitingList.push(mockPlayer);
+            this.registerPlayerInAdmin(mockPlayer);
             this.notifyQueueChanged();
           }
         }, 300 * (i + 1));
@@ -135,19 +179,21 @@ class CockpitDbSimulator {
           const selectedName = simulatedStudents[Math.floor(Math.random() * simulatedStudents.length)];
           
           if (!this.waitingList.some(p => p.nickname === selectedName)) {
-            this.waitingList.push({
+            const mockPlayer = {
               id: "mock_p_" + Math.random().toString(36).substr(2, 5),
               nickname: selectedName,
               score: 0,
               isHost: false,
               status: "waiting"
-            });
+            };
+            this.waitingList.push(mockPlayer);
+            this.registerPlayerInAdmin(mockPlayer);
             this.notifyQueueChanged();
           }
         }
       }, 3500);
 
-      // 대기열 로직 작동 (4초 후 매칭 완료되어 룸으로 입장)
+      // 대기열 로직 작동 (5초 후 매칭 완료되어 룸으로 입장)
       setTimeout(() => {
         if (!this.currentRoom && this.currentUser) {
           // 대기열 중 나를 제외한 대기 함장 중 하나 매칭
@@ -156,7 +202,8 @@ class CockpitDbSimulator {
             id: "player_opp_backup",
             nickname: "백업 에디슨",
             score: 0,
-            isBot: false
+            isBot: false,
+            status: "waiting"
           };
 
           // 대기열 제거
@@ -168,10 +215,11 @@ class CockpitDbSimulator {
             this.mockQueueInterval = null;
           }
 
+          this.registerPlayerInAdmin(opponent);
           this.simulatedOpponent = opponent;
           this.createMockRoom(this.currentUser, this.simulatedOpponent, false, onMatchFound);
         }
-      }, 5000); // 5초 동안 대기열 명단을 실시간으로 볼 기회 제공 후 매칭 진행
+      }, 5000);
     }
   }
 
@@ -181,18 +229,164 @@ class CockpitDbSimulator {
       id: "player_" + Math.random().toString(36).substr(2, 9),
       nickname: nickname || "훈련 함장",
       score: 0,
-      isHost: true
+      isHost: true,
+      status: "waiting"
     };
     
+    this.registerPlayerInAdmin(this.currentUser);
+
     // 즉각 매칭 수행
     const opponent = {
       id: "player_quick_opp",
       nickname: "신속한 가우스",
       score: 0,
-      isBot: false
+      isBot: false,
+      status: "waiting"
     };
     
+    this.registerPlayerInAdmin(opponent);
     this.createMockRoom(this.currentUser, opponent, false, onMatchFound);
+  }
+
+  // 선생님 관리자 전용 - 대기 중인 모든 참가자 무작위 1:1 일괄 매칭 수행
+  // --- REAL FIREBASE FIRESTORE CODE GUIDE ---
+  /*
+  forceMatchAllPlayersRealtime(onMatchFound) {
+    // Firestore users 컬렉션에서 status == "waiting"인 문서를 가져와서
+    // 2개씩 짝지어서 rooms 컬렉션에 새 방 문서를 생성하고 각 user 상태를 "playing"으로 업데이트합니다.
+  }
+  */
+  forceMatchAllPlayers(onMatchFound) {
+    if (this.waitingList.length === 0) return;
+
+    if (this.mockQueueInterval) {
+      clearInterval(this.mockQueueInterval);
+      this.mockQueueInterval = null;
+    }
+
+    // 대기열 목록을 돌며 2명씩 짝지어서 mock 방 생성
+    while (this.waitingList.length >= 2) {
+      const p1 = this.waitingList.shift();
+      const p2 = this.waitingList.shift();
+      
+      this.createMockRoom(p1, p2, false, onMatchFound);
+    }
+
+    // 만약 1명이 남는다면 홀수이므로 AI 봇과 매칭
+    if (this.waitingList.length === 1) {
+      const single = this.waitingList.shift();
+      const bot = {
+        id: "bot_alpha",
+        nickname: "AI 봇 (수학 마스터)",
+        score: 0,
+        isBot: true
+      };
+      this.createMockRoom(single, bot, true, onMatchFound);
+    }
+
+    this.notifyQueueChanged();
+  }
+
+  // 관리자용 실시간 닉네임 수정 기능 구현
+  // --- REAL FIREBASE FIRESTORE CODE GUIDE ---
+  /*
+  updateNicknameRealtime(playerId, newNickname) {
+    return db.collection("users").doc(playerId).update({
+      nickname: newNickname
+    });
+  }
+  */
+  updateNickname(playerId, newNickname) {
+    const trimmed = newNickname.trim();
+    if (!trimmed) {
+      return { success: false, error: "닉네임은 공백일 수 없습니다." };
+    }
+
+    // 이미 존재하는 닉네임과 중복 여부 검사 (본인 제외)
+    const exists = this.playersList.some(p => p.id !== playerId && p.nickname.toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      return { success: false, error: "이미 존재하는 닉네임과 중복됩니다." };
+    }
+
+    // 접속 명단 업데이트
+    const player = this.playersList.find(p => p.id === playerId);
+    if (player) {
+      player.nickname = trimmed;
+    }
+
+    // 대기열 목록 업데이트
+    const queuePlayer = this.waitingList.find(p => p.id === playerId);
+    if (queuePlayer) {
+      queuePlayer.nickname = trimmed;
+    }
+
+    // 현재 플레이어 정보 업데이트
+    if (this.currentUser && this.currentUser.id === playerId) {
+      this.currentUser.nickname = trimmed;
+    }
+    if (this.simulatedOpponent && this.simulatedOpponent.id === playerId) {
+      this.simulatedOpponent.nickname = trimmed;
+    }
+
+    // ** [변경된 닉네임 실시간 동기화] **
+    // 현재 작동 중인 대전 룸의 플레이어 정보를 수정하여 즉각 화면 HUD에 실시간 동기화시킵니다.
+    if (this.currentRoom) {
+      let changed = false;
+      if (this.currentRoom.p1.id === playerId) {
+        this.currentRoom.p1.nickname = trimmed;
+        changed = true;
+      }
+      if (this.currentRoom.p2.id === playerId) {
+        this.currentRoom.p2.nickname = trimmed;
+        changed = true;
+      }
+
+      if (changed) {
+        // Room update 발송 -> listenRoom 리스너들이 감지해 실시간 HUD 수정
+        this.updateRoomState(this.currentRoom.id, {
+          p1: this.currentRoom.p1,
+          p2: this.currentRoom.p2
+        });
+      }
+    }
+
+    this.notifyQueueChanged();
+    this.notifyPlayersChanged();
+    return { success: true };
+  }
+
+  // 관리자용 세션 시스템 초기화 기능 구현
+  // --- REAL FIREBASE FIRESTORE CODE GUIDE ---
+  /*
+  triggerResetRealtime() {
+    // 모든 사용자 상태를 'idle'로 변경하고 방을 삭제하는 트랜잭션 수행
+    const batch = db.batch();
+    // ... batch operations
+    return batch.commit();
+  }
+  */
+  triggerReset() {
+    this.waitingList = [];
+    this.playersList = [];
+    this.currentRoom = null;
+    this.currentUser = null;
+    this.simulatedOpponent = null;
+    
+    if (this.aiInterval) {
+      clearInterval(this.aiInterval);
+      this.aiInterval = null;
+    }
+    if (this.mockQueueInterval) {
+      clearInterval(this.mockQueueInterval);
+      this.mockQueueInterval = null;
+    }
+
+    this.notifyQueueChanged();
+    this.notifyPlayersChanged();
+
+    // 현재 방의 구독자들에게 강제 퇴출 통지
+    this.stateListeners.forEach(listener => listener({ status: "reset" }));
+    this.stateListeners = [];
   }
 
   // 가상의 게임 룸 생성 및 초기 상태 설정
@@ -214,6 +408,12 @@ class CockpitDbSimulator {
       lastAction: null // { type: 'fire', playerId: '...', laser: { a, b }, hits: [...] }
     };
 
+    // 대기 상태 제거 및 게임룸 상태 변경 기록
+    this.updatePlayerStatusInAdmin(player1.id, "playing", roomId);
+    if (!player2.isBot) {
+      this.updatePlayerStatusInAdmin(player2.id, "playing", roomId);
+    }
+
     onMatchFound({
       roomId: roomId,
       player: player1,
@@ -229,23 +429,20 @@ class CockpitDbSimulator {
     const targets = [];
     const usedCoords = new Set();
     
-    // 정수 범위 내에서 일차함수 식 5~6개 정의
+    // 정수 범위 내에서 일차함수 식 5~6개 정의 (범위 [-4, 4]에 맞춤)
     const testLines = [
-      { a: 1, b: 2 },   // y = x + 2
+      { a: 1, b: 1 },   // y = x + 1
       { a: -1, b: 0 },  // y = -x
-      { a: 2, b: -3 },  // y = 2x - 3
-      { a: -2, b: 4 },  // y = -2x + 4
-      { a: 3, b: -5 },  // y = 3x - 5
-      { a: 0, b: 3 }    // y = 3 (기울기 0)
+      { a: 2, b: -1 },  // y = 2x - 1
+      { a: -2, b: 2 },  // y = -2x + 2
+      { a: 3, b: 0 },   // y = 3x
+      { a: 0, b: -2 }   // y = -2 (기울기 0)
     ];
 
     // 각 함수 식에서 정수 격자점(x, y)을 추출하여 그 위치에 별을 배치합니다.
-    // 이렇게 하면 무작위로 아무데나 별이 배치되는 것이 아니라,
-    // 정수 기울기(yellow)와 정수 평행이동(green) 블록을 조합했을 때 정확히 적중할 수 있는 격자점이 보장됩니다.
-    // y축 범위는 [-8, 8], x축 범위는 [-8, 8] 사이의 정수로 제한
+    // y축 범위는 [-4, 4], x축 범위는 [-4, 4] 사이의 정수로 제한하여 줌인 화면에 맞춤
     testLines.forEach(line => {
-      // 각 식당 2~3개의 정수 포인트를 타겟으로 삼음 (일타쌍피, 일타삼피 각 유도)
-      const xChoices = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
+      const xChoices = [-3, -2, -1, 0, 1, 2, 3];
       // 무작위 셔플
       xChoices.sort(() => Math.random() - 0.5);
       
@@ -254,8 +451,8 @@ class CockpitDbSimulator {
         const x = xChoices[i];
         const y = line.a * x + line.b;
         
-        // y 좌표도 정수 격자 범위 내에 있고 중복되지 않았는지 검사
-        if (y >= -8 && y <= 8) {
+        // y 좌표도 격자 범위 [-4, 4] 내에 있고 중복되지 않았는지 검사
+        if (y >= -4 && y <= 4) {
           const coordKey = `${x},${y}`;
           if (!usedCoords.has(coordKey)) {
             usedCoords.add(coordKey);
@@ -275,8 +472,8 @@ class CockpitDbSimulator {
 
     // 만약 타겟 개수가 너무 적으면 기본 격자 추가 (최소 7개 보장)
     while (targets.length < 8) {
-      const x = Math.floor(Math.random() * 13) - 6; // -6 ~ 6
-      const y = Math.floor(Math.random() * 13) - 6;
+      const x = Math.floor(Math.random() * 9) - 4; // -4 ~ 4
+      const y = Math.floor(Math.random() * 9) - 4; // -4 ~ 4
       const coordKey = `${x},${y}`;
       if (!usedCoords.has(coordKey)) {
         usedCoords.add(coordKey);

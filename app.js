@@ -54,7 +54,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const views = {
     lobby: document.getElementById("lobby-screen"),
     game: document.getElementById("game-screen"),
-    result: document.getElementById("result-screen")
+    result: document.getElementById("result-screen"),
+    admin: document.getElementById("admin-screen")
   };
 
   const lobby = {
@@ -63,9 +64,24 @@ document.addEventListener("DOMContentLoaded", () => {
     matchingBtn: document.getElementById("matching-btn"),
     queueStatus: document.getElementById("queue-status"),
     statusText: document.getElementById("status-text"),
-    forceMatchBtn: document.getElementById("force-match-btn"),
     waitingCount: document.getElementById("waiting-count"),
     waitingList: document.getElementById("waiting-list")
+  };
+
+  const admin = {
+    loginTrigger: document.getElementById("admin-login-trigger-btn"),
+    modal: document.getElementById("admin-login-modal"),
+    passwordInput: document.getElementById("admin-password-input"),
+    errorMsg: document.getElementById("admin-login-error"),
+    cancelBtn: document.getElementById("admin-modal-cancel-btn"),
+    confirmBtn: document.getElementById("admin-modal-confirm-btn"),
+    
+    screen: document.getElementById("admin-screen"),
+    playersCount: document.getElementById("admin-players-count"),
+    playersList: document.getElementById("admin-players-list"),
+    forceMatchBtn: document.getElementById("admin-force-match-btn"),
+    resetBtn: document.getElementById("admin-reset-btn"),
+    exitBtn: document.getElementById("admin-exit-btn")
   };
 
   const hud = {
@@ -263,7 +279,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ==========================================
   // MATHEMATICAL HELPERS (GRID <-> SCREEN)
   // ==========================================
-  const gridRange = 10; // -10 to +10
+  const gridRange = 5; // -5 to +5 (축소된 줌인 범위)
 
   function getCanvasCenter() {
     return { x: canvas.width / 2, y: canvas.height / 2 };
@@ -295,16 +311,162 @@ document.addEventListener("DOMContentLoaded", () => {
   // ==========================================
   lobby.pveBtn.addEventListener("click", () => startMatchmaking(true));
   lobby.matchingBtn.addEventListener("click", () => startMatchmaking(false));
-  lobby.forceMatchBtn.addEventListener("click", () => {
-    const name = lobby.nicknameInput.value.trim() || "신속 함장";
-    state.nickname = name;
-    
-    lobby.queueStatus.classList.remove("hidden");
-    lobby.statusText.textContent = "🛡️ 교사 제어로 무작위 대진을 생성하는 중...";
-    
-    setTimeout(() => {
-      window.spaceDb.forceMatchmaking(state.nickname, onMatchFound);
-    }, 1000);
+  // ==========================================
+  // 🔐 ADMIN LOGIN & TEACHER PANEL CONTROLS
+  // ==========================================
+  
+  // 1. 관리자 로그인 모달 창 띄우기
+  admin.loginTrigger.addEventListener("click", () => {
+    admin.modal.classList.remove("hidden");
+    admin.passwordInput.value = "";
+    admin.errorMsg.classList.add("hidden");
+    admin.passwordInput.focus();
+  });
+
+  // 2. 모달 창 닫기/취소
+  admin.cancelBtn.addEventListener("click", () => {
+    admin.modal.classList.add("hidden");
+    admin.passwordInput.value = "";
+    admin.errorMsg.classList.add("hidden");
+  });
+
+  // 3. 비밀번호 검증 및 사령부 진입 (비밀번호: 2525)
+  admin.confirmBtn.addEventListener("click", performAdminLogin);
+  admin.passwordInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") performAdminLogin();
+  });
+
+  function performAdminLogin() {
+    const pwd = admin.passwordInput.value;
+    if (pwd === "2525") {
+      // 인증 성공 -> 모달 닫고 관리자 전용 화면으로 이동
+      admin.modal.classList.add("hidden");
+      admin.passwordInput.value = "";
+      admin.errorMsg.classList.add("hidden");
+      
+      showView("admin");
+    } else {
+      // 인증 실패
+      admin.errorMsg.classList.remove("hidden");
+      admin.passwordInput.value = "";
+      admin.passwordInput.focus();
+    }
+  }
+
+  // 4. 관리자 패널 나가기
+  admin.exitBtn.addEventListener("click", () => {
+    showView("lobby");
+  });
+
+  // 5. 무작위 매칭 일괄 실행 버튼
+  admin.forceMatchBtn.addEventListener("click", () => {
+    window.spaceDb.forceMatchAllPlayers(onMatchFound);
+  });
+
+  // 6. 시스템 강제 초기화 실행 버튼
+  admin.resetBtn.addEventListener("click", () => {
+    if (confirm("🚨 경고: 진행 중인 모든 함장 세션 및 룸 데이터가 폭파되고 대기열이 완전히 비워집니다. 계속하시겠습니까?")) {
+      window.spaceDb.triggerReset();
+      alert("🧹 시스템 초기화가 성공적으로 완료되었습니다.");
+      showView("lobby");
+    }
+  });
+
+  // ** [관리자 화면 참가자 명단 실시간 동기화 및 닉네임 수정 기능] **
+  let editingPlayerId = null; // 현재 인라인 수정 중인 플레이어 ID 추적
+
+  window.spaceDb.listenPlayers((players) => {
+    if (!admin.playersList || !admin.playersCount) return;
+
+    admin.playersCount.textContent = players.length;
+    admin.playersList.innerHTML = "";
+
+    if (players.length === 0) {
+      const emptyLi = document.createElement("li");
+      emptyLi.className = "empty-msg";
+      emptyLi.textContent = "현재 접속 중인 함장이 없습니다.";
+      admin.playersList.appendChild(emptyLi);
+    } else {
+      players.forEach(player => {
+        const li = document.createElement("li");
+        
+        // 1. 함장 메타 정보 영역
+        const metaDiv = document.createElement("div");
+        metaDiv.className = "player-meta";
+
+        const statusTag = document.createElement("span");
+        statusTag.className = `admin-status-tag ${player.status}`;
+        statusTag.textContent = player.status === "playing" ? `PLAYING` : `WAITING`;
+        metaDiv.appendChild(statusTag);
+
+        // 2. 인라인 편집 입력창 활성화 여부에 따른 분기 렌더링
+        if (editingPlayerId === player.id) {
+          // 인라인 편집용 인풋 필드
+          const input = document.createElement("input");
+          input.type = "text";
+          input.className = "admin-edit-input";
+          input.value = player.nickname;
+          input.maxLength = 10;
+          metaDiv.appendChild(input);
+          li.appendChild(metaDiv);
+
+          // 인라인 저장 / 취소 버튼쌍
+          const actionDiv = document.createElement("div");
+          actionDiv.className = "player-actions";
+
+          const confirmBtn = document.createElement("button");
+          confirmBtn.className = "btn primary small btn-inline";
+          confirmBtn.textContent = "확인";
+          confirmBtn.addEventListener("click", () => {
+            const newName = input.value;
+            const res = window.spaceDb.updateNickname(player.id, newName);
+            if (res.success) {
+              editingPlayerId = null; // 수정 종료
+            } else {
+              alert(`⚠️ 오류: ${res.error}`);
+            }
+          });
+
+          const cancelBtn = document.createElement("button");
+          cancelBtn.className = "btn border-btn small btn-inline";
+          cancelBtn.textContent = "취소";
+          cancelBtn.addEventListener("click", () => {
+            editingPlayerId = null; // 수정 취소 후 원래대로 리렌더
+            window.spaceDb.notifyPlayersChanged();
+          });
+
+          actionDiv.appendChild(confirmBtn);
+          actionDiv.appendChild(cancelBtn);
+          li.appendChild(actionDiv);
+        } else {
+          // 일반 닉네임 텍스트 표시
+          const nameSpan = document.createElement("span");
+          nameSpan.className = "player-name-text";
+          nameSpan.textContent = `🚀 ${player.nickname}`;
+          metaDiv.appendChild(nameSpan);
+          li.appendChild(metaDiv);
+
+          // 수정 활성화 버튼
+          const actionDiv = document.createElement("div");
+          actionDiv.className = "player-actions";
+
+          const editBtn = document.createElement("button");
+          editBtn.className = "btn border-btn small btn-inline";
+          editBtn.textContent = "수정";
+          
+          // 권한 확인: 이 수정 기능은 관리자 화면에서만 가능
+          editBtn.addEventListener("click", () => {
+            editingPlayerId = player.id; // 수정 대상 설정
+            window.spaceDb.notifyPlayersChanged(); // 명단 다시 그려 인풋으로 전환
+          });
+
+          actionDiv.appendChild(editBtn);
+          li.appendChild(actionDiv);
+        }
+
+        admin.playersList.appendChild(li);
+      });
+    }
   });
 
   function startMatchmaking(isPvE) {
@@ -433,7 +595,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Real-time synchronization callback
   function onRoomUpdate(room) {
-    if (!room || !state.isPlaying) return;
+    if (!room) return;
+
+    // ** [관리자 시스템 초기화 실시간 감지 및 홈 퇴출 로직] **
+    if (room.status === "reset" && state.isPlaying) {
+      if (state.timerInterval) clearInterval(state.timerInterval);
+      if (window.spaceDb.aiInterval) {
+        clearInterval(window.spaceDb.aiInterval);
+        window.spaceDb.aiInterval = null;
+      }
+      state.isPlaying = false;
+      
+      alert("🚨 관리자 제어: 전역 시스템 초기화로 인해 로비 화면으로 강제 이동됩니다.");
+      
+      // UI 초기화
+      lobby.pveBtn.removeAttribute("disabled");
+      lobby.matchingBtn.removeAttribute("disabled");
+      lobby.pveBtn.textContent = "🚀 PLAY VS AI BOT (싱글 연습)";
+      lobby.matchingBtn.textContent = "📡 JOIN MATCH QUEUE (실시간 대전)";
+      lobby.matchingBtn.style = "";
+      lobby.pveBtn.style = "";
+      lobby.queueStatus.classList.add("hidden");
+      lobby.nicknameInput.value = "";
+      
+      showView("lobby");
+      return;
+    }
+
+    if (!state.isPlaying) return;
+
+    // ** [변경된 닉네임 실시간 동기화 반영] **
+    // 관리자가 참가자 닉네임을 변경한 경우 화면 HUD에 실시간으로 반영합니다.
+    hud.p1Name.textContent = room.p1.nickname;
+    hud.p2Name.textContent = room.p2.nickname;
 
     // Sync scores
     state.p1 = room.p1;
@@ -719,11 +913,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const center = getCanvasCenter();
 
-    // 1. Draw Grid Lines
-    ctx.strokeStyle = "#1f2657";
+    // 1. Draw Grid Lines (더 밝고 선명한 슬레이트 네온 블루 격자선)
+    ctx.strokeStyle = "rgba(99, 102, 241, 0.35)";
     ctx.lineWidth = 1;
-    ctx.font = "10px Orbitron";
-    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+    ctx.font = "bold 11px Orbitron";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
@@ -747,14 +941,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Tick Labels
       // X labels
-      ctx.fillText(i, vLine.x, center.y + 12);
+      ctx.fillText(i, vLine.x, center.y + 14);
       // Y labels
-      ctx.fillText(i, center.x - 12, hLine.y);
+      ctx.fillText(i, center.x - 14, hLine.y);
     }
 
-    // 2. Draw Principal Axes (Cyan glowing grid)
-    ctx.strokeStyle = "rgba(0, 243, 255, 0.8)";
-    ctx.lineWidth = 2.5;
+    // 2. Draw Principal Axes (선명한 네온 사이언 글로잉 축선)
+    ctx.strokeStyle = "#00f3ff";
+    ctx.lineWidth = 3.5;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "#00f3ff";
 
     // X-Axis
     ctx.beginPath();
@@ -767,9 +963,12 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.moveTo(center.x, 0);
     ctx.lineTo(center.x, canvas.height);
     ctx.stroke();
+    
+    // 그림자 효과 복원
+    ctx.shadowBlur = 0;
 
     // Axis Arrows
-    ctx.fillStyle = "rgba(0, 243, 255, 0.8)";
+    ctx.fillStyle = "#00f3ff";
     // X arrow
     ctx.beginPath();
     ctx.moveTo(canvas.width, center.y);
@@ -912,22 +1111,28 @@ document.addEventListener("DOMContentLoaded", () => {
     window.spaceDb.aiInterval = setInterval(() => {
       if (!state.isPlaying || state.targets.length === 0) return;
 
-      // Select target to shoot
-      // 80% chance to pick a target and solve equation exactly, 20% to make a blind shot
-      const makeMistake = Math.random() < 0.20;
+      const p1Score = state.p1.score; // 플레이어 점수
+      const p2Score = state.p2.score; // AI 봇 점수
+
+      // ** [AI 봇 성능 제한 난이도 조정 로직] **
+      // AI의 점수가 플레이어 점수보다 10점 이상 높다면 강제로 빗맞추도록 제한합니다.
+      const forceMiss = (p2Score >= p1Score + 10);
+      const makeMistake = forceMiss || Math.random() < 0.20;
 
       if (makeMistake || state.targets.length === 0) {
         // Blind shot simulation
         const randA = [-3, -2, -1, 1, 2, 3][Math.floor(Math.random() * 6)];
         const randB = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5][Math.floor(Math.random() * 11)];
         
-        // Find if it randomly hits anything
+        // Find if it randomly hits anything (강제 미스 시 빈 어레이)
         const hitIds = [];
-        state.targets.forEach(t => {
-          if (Math.abs(t.y - (randA * t.x + randB)) < 0.1) {
-            hitIds.push(t.id);
-          }
-        });
+        if (!forceMiss) {
+          state.targets.forEach(t => {
+            if (Math.abs(t.y - (randA * t.x + randB)) < 0.1) {
+              hitIds.push(t.id);
+            }
+          });
+        }
 
         window.spaceDb.fireLaser(state.roomId, state.p2.id, randA, randB, hitIds);
       } else {
@@ -962,13 +1167,15 @@ document.addEventListener("DOMContentLoaded", () => {
           foundB = star.y - foundA * star.x;
         }
 
-        // Check overall target hits
+        // Check overall target hits (강제 미스 시 빈 어레이)
         const hitIds = [];
-        state.targets.forEach(t => {
-          if (Math.abs(t.y - (foundA * t.x + foundB)) < 0.1) {
-            hitIds.push(t.id);
-          }
-        });
+        if (!forceMiss) {
+          state.targets.forEach(t => {
+            if (Math.abs(t.y - (foundA * t.x + foundB)) < 0.1) {
+              hitIds.push(t.id);
+            }
+          });
+        }
 
         window.spaceDb.fireLaser(state.roomId, state.p2.id, foundA, foundB, hitIds);
       }
