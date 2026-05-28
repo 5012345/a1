@@ -10,14 +10,13 @@
 
 // Firebase SDK 초기화 및 구성 영역 (선생님/학생 입력용)
 const firebaseConfig = {
-  /*
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
-  */
+  apiKey: "AIzaSyDX5TiB78wqtnzgwgOpfnEv7f0hcN0L4LU",
+  authDomain: "duru20401-b60fa.firebaseapp.com",
+  projectId: "duru20401-b60fa",
+  storageBucket: "duru20401-b60fa.firebasestorage.app",
+  messagingSenderId: "790407879385",
+  appId: "1:790407879385:web:5e870c62480531fb1ebcc8",
+  measurementId: "G-YC30724HMC"
 };
 
 // 브라우저 윈도우 객체에 firebase가 로드되어 있고 설정 키가 입력되어 있으면 활성화
