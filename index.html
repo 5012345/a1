@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>일차함수 블록 슈팅 온라인 🚀</title>
+  <meta name="description" content="중학교 2학년 수학 일차함수 평행이동 학습용 실시간 슈팅 매칭 게임">
+  
+  <!-- Font Embedding for Sci-Fi theme -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+  
+  <!-- CSS Styling link -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Background Space Canvas for Cosmic effect -->
+  <canvas id="space-bg"></canvas>
+
+  <div class="app-container">
+    
+    <!-- LOBBY SCREEN -->
+    <div id="lobby-screen" class="view-panel active">
+      <div class="lobby-card glass">
+        <div class="logo-area animate-glow">
+          <span class="badge">MIDDLE SCHOOL MATH LEVEL 2</span>
+          <h1>LINEAR BLOCK SHOOTING</h1>
+          <p class="subtitle font-orbitron">ONLINE BATTLE CRUISE</p>
+        </div>
+        
+        <div class="lobby-content">
+          <div class="story-box">
+            <p>🌌 <strong>우주 사령부 보고:</strong> 좌표평면에 차원 에너지 별이 흩어졌습니다!</p>
+            <p>기울기(노란색)와 평행이동(초록색) 에너지를 조합하여 1차함수 레이저를 발사하세요. 정확한 수식을 만들어 여러 에너지 별을 동시에 관통해 최고의 일차함수 마스터 함장이 되세요!</p>
+          </div>
+
+          <div class="input-group">
+            <label for="nickname-input">함장 닉네임 입력</label>
+            <input type="text" id="nickname-input" placeholder="닉네임을 입력하세요..." maxlength="10">
+          </div>
+
+          <div class="mode-selection">
+            <button id="pve-btn" class="btn primary font-orbitron">🚀 PLAY VS AI BOT (싱글 연습)</button>
+            <button id="matching-btn" class="btn secondary font-orbitron">📡 JOIN MATCH QUEUE (실시간 대전)</button>
+          </div>
+
+          <!-- Queue Status Info -->
+          <div id="queue-status" class="status-indicator hidden">
+            <span class="spinner"></span>
+            <span id="status-text">우주 통신 연결 중...</span>
+          </div>
+
+          <!-- Teacher / Admin Panel -->
+          <div class="teacher-panel glass">
+            <h3>🛡️ 관리자 / 선생님 전용 제어판</h3>
+            <div class="panel-controls">
+              <button id="force-match-btn" class="btn border-btn small">⚡ 강제 무작위 매칭 실행</button>
+              <p class="desc">대기 중인 학생들을 즉시 1:1 무작위 방으로 자동 매칭시킵니다. (홀수인 경우 AI 매칭)</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="instructions-footer">
+          <div class="inst-item">
+            <span class="icon">📐</span>
+            <p><strong>일차함수 뜻과 그래프</strong><br>y = ax + b 수식 설계</p>
+          </div>
+          <div class="inst-item">
+            <span class="icon">↕️</span>
+            <p><strong>평행이동 성질</strong><br>y = ax를 y축 방향 b 이동</p>
+          </div>
+          <div class="inst-item">
+            <span class="icon">💥</span>
+            <p><strong>일타쌍피 콤보</strong><br>2개 25점 / 3개 이상 40점</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="game-screen" class="view-panel">
+      <!-- Cockpit HUD Head-up Display -->
+      <header class="hud-header glass">
+        <!-- Player 1 Profile -->
+        <div class="player-hud p1-hud active-glow">
+          <div class="player-icon font-orbitron">P1</div>
+          <div class="player-info">
+            <div id="p1-name" class="player-name">함장 1</div>
+            <div class="score-container">
+              <span class="score-label">SCORE</span>
+              <span id="p1-score" class="score-value font-orbitron">0000</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Central Clock & Target Count -->
+        <div class="central-hud font-orbitron">
+          <div class="hud-item timer-box">
+            <span class="hud-label">TIME LIMIT</span>
+            <span id="game-timer" class="hud-value warn-glow">120</span>
+          </div>
+          <div class="hud-item star-count-box">
+            <span class="hud-label">ENERGY STARS</span>
+            <span id="star-count" class="hud-value cyan-glow">--</span>
+          </div>
+        </div>
+
+        <!-- Player 2 / AI Profile -->
+        <div class="player-hud p2-hud">
+          <div class="player-info">
+            <div id="p2-name" class="player-name">함장 2 (상대)</div>
+            <div class="score-container">
+              <span class="score-label">SCORE</span>
+              <span id="p2-score" class="score-value font-orbitron">0000</span>
+            </div>
+          </div>
+          <div id="p2-icon" class="player-icon font-orbitron">P2</div>
+        </div>
+      </header>
+
+      <!-- Main Game Console Area -->
+      <main class="game-console">
+        <!-- Left Tray: Slope Blocks (Yellow) -->
+        <aside class="block-tray-container left-tray">
+          <div class="tray-title font-orbitron yellow-text">SLOPE (a)</div>
+          <div class="tray-desc">기울기 블록 (노란색)</div>
+          <div id="slope-tray" class="block-tray">
+            <!-- Dynamically populated yellow blocks -->
+          </div>
+        </aside>
+
+        <!-- Center Viewport: The Grid Coordinate Space -->
+        <section class="coordinates-viewport glass">
+          <div class="viewport-header">
+            <span class="status-dot green"></span>
+            <span class="viewport-title font-orbitron">NAVIGATION STAR CHART ([-10, 10] × [-10, 10])</span>
+            <button id="sound-toggle" class="btn small border-btn">🔊 Sound ON</button>
+          </div>
+          
+          <div class="canvas-wrapper">
+            <canvas id="grid-canvas" width="600" height="600"></canvas>
+            <div id="laser-alert-message" class="laser-alert hidden font-orbitron">LASER CHARGED</div>
+          </div>
+        </section>
+
+        <!-- Right Tray: Y-Intercept/Translation Blocks (Green) -->
+        <aside class="block-tray-container right-tray">
+          <div class="tray-title font-orbitron green-text">TRANSLATION (b)</div>
+          <div class="tray-desc">평행이동 블록 (초록색)</div>
+          <div id="translation-tray" class="block-tray">
+            <!-- Dynamically populated green blocks -->
+          </div>
+        </aside>
+      </main>
+
+      <!-- Control Assembly Panel -->
+      <footer class="cockpit-controls glass">
+        <div class="formula-constructor">
+          <span class="formula-prefix">일차함수</span>
+          
+          <span class="equation-term font-orbitron">
+            y = 
+            <div id="slot-slope" class="equation-slot yellow-slot empty" data-placeholder="기울기">
+              기울기
+            </div>
+            x
+          </span>
+
+          <span class="formula-middle">의 그래프를 y축의 방향으로</span>
+
+          <span class="equation-term font-orbitron">
+            <div id="slot-translation" class="equation-slot green-slot empty" data-placeholder="평행이동">
+              평행이동
+            </div>
+            만큼 평행이동
+          </span>
+        </div>
+
+        <div class="action-buttons">
+          <button id="clear-btn" class="btn danger small">❌ 초기화</button>
+          <button id="fire-btn" class="btn launch-btn font-orbitron disabled" disabled>🚀 LASER FIRE</button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- RESULT / GAME OVER SCREEN -->
+    <div id="result-screen" class="view-panel">
+      <div class="result-card glass animate-slide-up">
+        <div class="result-header">
+          <h1 id="result-title" class="font-orbitron">VICTORY</h1>
+          <p id="result-subtitle">일차함수 마스터 등극!</p>
+        </div>
+
+        <div class="result-stats">
+          <div class="stat-row">
+            <span class="label">최종 점수 (내 점수)</span>
+            <span id="final-my-score" class="value font-orbitron">0</span>
+          </div>
+          <div class="stat-row border">
+            <span class="label">상대 점수</span>
+            <span id="final-opponent-score" class="value font-orbitron">0</span>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-box">
+              <span id="stat-accuracy" class="stat-val font-orbitron">0%</span>
+              <span class="stat-lbl">수식 명중률</span>
+            </div>
+            <div class="stat-box">
+              <span id="stat-max-combo" class="stat-val font-orbitron">0</span>
+              <span class="stat-lbl">최대 콤보 수</span>
+            </div>
+            <div class="stat-box">
+              <span id="stat-shots" class="stat-val font-orbitron">0회</span>
+              <span class="stat-lbl">레이저 발사 횟수</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-actions">
+          <button id="return-lobby-btn" class="btn primary font-orbitron">🛰️ RETURN TO LOBBY (로비로 돌아가기)</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Javascript Modules inclusion -->
+  <script src="firebase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
