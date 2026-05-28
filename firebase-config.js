@@ -72,11 +72,11 @@ class CockpitDbSimulator {
   // 관리자/선생님 화면 - 전체 참가자 목록 실시간 구독 (Listen)
   listenPlayers(callback) {
     if (this.isRealFirebase) {
-      console.log("🛡️ [Admin DB Setup] Hooking real-time observer to users collection.");
-      console.log("👉 [디버그] 관리자 화면 - Firestore users 컬렉션 실시간 감시 시작");
+      console.log("🛡️ [Admin DB Setup] Hooking real-time observer to waiting_room collection.");
+      console.log("👉 [디버그] 관리자 화면 - Firestore waiting_room 컬렉션 실시간 감시 시작");
       
-      // users 컬렉션 전체를 실시간 감시 (인덱스 에러 방지를 위해 orderBy를 제거하고 클라이언트 측에서 정렬)
-      this.adminUnsubscribe = this.db.collection("users")
+      // waiting_room 컬렉션 전체를 실시간 감시 (인덱스 에러 방지를 위해 orderBy를 제거하고 클라이언트 측에서 정렬)
+      this.adminUnsubscribe = this.db.collection("waiting_room")
         .onSnapshot((snapshot) => {
           const players = [];
           snapshot.forEach(doc => {
@@ -99,7 +99,7 @@ class CockpitDbSimulator {
           callback(players);
         }, (error) => {
           console.error("🛡️ [Admin DB Error] Real-time observer hook failed:", error);
-          console.error("❌ [디버그] 관리자 화면 - users snapshot 구독 실패!", error);
+          console.error("❌ [디버그] 관리자 화면 - waiting_room snapshot 구독 실패!", error);
         });
     } else {
       this.adminListeners.push(callback);
@@ -140,7 +140,7 @@ class CockpitDbSimulator {
     if (this.isRealFirebase) {
       console.log("👀 [디버그] 대기열(queue) 실시간 구독 시작");
       // status == 'waiting' 인 사용자들 실시간 구독 (복합 인덱스 에러 방지를 위해 orderBy를 제거하고 클라이언트 측에서 정렬)
-      this.queueUnsubscribe = this.db.collection("users")
+      this.queueUnsubscribe = this.db.collection("waiting_room")
         .where("status", "==", "waiting")
         .onSnapshot((snapshot) => {
           const list = [];
@@ -188,21 +188,21 @@ class CockpitDbSimulator {
     if (this.isRealFirebase) {
       console.log(`👉 [디버그] 참가자 대기열 등록을 위한 Firestore 쓰기 시도. 닉네임: ${this.currentUser.nickname}, ID: ${playerId}`);
       // 1. 실제 Firebase Firestore에 사용자 세션 데이터 등록
-      this.db.collection("users").doc(playerId).set({
+      this.db.collection("waiting_room").doc(playerId).set({
         nickname: this.currentUser.nickname,
         status: isPvE ? "pve" : "waiting",
         roomId: null,
         joinedAt: firebase.firestore.FieldValue.serverTimestamp()
       }).then(() => {
-        console.log(`📡 [Firebase Firestore] Player registered successfully in users collection.`);
-        console.log(`✅ [디버그] Firestore 등록 완료! 경로: users/${playerId}`);
+        console.log(`📡 [Firebase Firestore] Player registered successfully in waiting_room collection.`);
+        console.log(`✅ [디버그] Firestore 등록 완료! 경로: waiting_room/${playerId}`);
       }).catch(err => {
         console.error("❌ [Firebase Firestore] User registration document write error:", err);
         console.error("❌ [디버그] Firestore 등록 실패!", err);
       });
 
       // 2. 내 사용자 문서의 roomId 실시간 감시 (매칭 매니저나 교사가 매칭시켜서 roomId가 기입되길 대기)
-      this.userUnsubscribe = this.db.collection("users").doc(playerId).onSnapshot((doc) => {
+      this.userUnsubscribe = this.db.collection("waiting_room").doc(playerId).onSnapshot((doc) => {
         const data = doc.data();
         if (data && data.roomId && data.status === "playing") {
           console.log(`📡 [Lobby Connection] Matchmaker paired player. Assigned Room ID: ${data.roomId}`);
@@ -301,30 +301,7 @@ class CockpitDbSimulator {
           }
         }, 3500);
 
-        setTimeout(() => {
-          if (!this.currentRoom && this.currentUser) {
-            const pool = this.waitingList.filter(p => p.id !== this.currentUser.id);
-            const opponent = pool.length > 0 ? pool[0] : {
-              id: "player_opp_backup",
-              nickname: "백업 에디슨",
-              score: 0,
-              isBot: false,
-              status: "waiting"
-            };
-
-            this.waitingList = this.waitingList.filter(p => p.id !== this.currentUser.id && p.id !== opponent.id);
-            this.notifyQueueChanged();
-
-            if (this.mockQueueInterval) {
-              clearInterval(this.mockQueueInterval);
-              this.mockQueueInterval = null;
-            }
-
-            this.registerPlayerInAdmin(opponent);
-            this.simulatedOpponent = opponent;
-            this.createMockRoom(this.currentUser, this.simulatedOpponent, false, onMatchFound);
-          }
-        }, 5000);
+        // ⚠️ 관리자 주도 매칭을 위해 로컬 시뮬레이터 자동 매칭(setTimeout 5초) 제거함
       }
     }
   }
@@ -359,7 +336,7 @@ class CockpitDbSimulator {
     
     if (this.isRealFirebase) {
       // 1. 데이터베이스에서 waiting 인 학생들 쿼리 로드 (복합 인덱스 에러 방지를 위해 orderBy 제거)
-      this.db.collection("users")
+      this.db.collection("waiting_room")
         .where("status", "==", "waiting")
         .get()
         .then((snapshot) => {
@@ -398,8 +375,8 @@ class CockpitDbSimulator {
             });
 
             // 유저 문서 수정 -> 학생 클라이언트 side에서 감지하여 코핏으로 진입
-            this.db.collection("users").doc(p1.id).update({ status: "playing", roomId: roomId });
-            this.db.collection("users").doc(p2.id).update({ status: "playing", roomId: roomId });
+            this.db.collection("waiting_room").doc(p1.id).update({ status: "playing", roomId: roomId });
+            this.db.collection("waiting_room").doc(p2.id).update({ status: "playing", roomId: roomId });
           }
 
           // 홀수 시 마지막 한 명 AI 봇 할당
@@ -421,7 +398,7 @@ class CockpitDbSimulator {
               lastAction: null
             });
 
-            this.db.collection("users").doc(single.id).update({ status: "playing", roomId: roomId });
+            this.db.collection("waiting_room").doc(single.id).update({ status: "playing", roomId: roomId });
           }
         }).catch(err => {
           console.error("❌ [Admin Action] Force Matchmaking batch fetch error:", err);
@@ -466,7 +443,7 @@ class CockpitDbSimulator {
 
     if (this.isRealFirebase) {
       // 1. 중복성 닉네임 검사
-      return this.db.collection("users")
+      return this.db.collection("waiting_room")
         .where("nickname", "==", trimmed)
         .get()
         .then((snapshot) => {
@@ -484,13 +461,13 @@ class CockpitDbSimulator {
           }
 
           // 2. 유저 컬렉션 내 닉네임 업데이트
-          this.db.collection("users").doc(playerId).update({
+          this.db.collection("waiting_room").doc(playerId).update({
             nickname: trimmed
           });
 
           // 3. 만약 해당 플레이어가 현재 활성화된 방에서 게임 중인 경우, 방 문서 내 닉네임 필드도 실시간 수정
           // 이 변경값은 양 클라이언트 listenRoom 스냅샷에 잡혀 HUD가 실시간 동기화됩니다!
-          this.db.collection("users").doc(playerId).get().then(playerDoc => {
+          this.db.collection("waiting_room").doc(playerId).get().then(playerDoc => {
             const userData = playerDoc.data();
             if (userData && userData.roomId && userData.status === "playing") {
               const roomRef = this.db.collection("rooms").doc(userData.roomId);
@@ -581,9 +558,9 @@ class CockpitDbSimulator {
       });
 
       // 2. 유저 컬렉션 도큐먼트 전부 삭제
-      this.db.collection("users").get().then(snapshot => {
+      this.db.collection("waiting_room").get().then(snapshot => {
         snapshot.forEach(doc => {
-          this.db.collection("users").doc(doc.id).delete();
+          this.db.collection("waiting_room").doc(doc.id).delete();
         });
       });
 
@@ -647,18 +624,17 @@ class CockpitDbSimulator {
     const targets = [];
     const usedCoords = new Set();
     
-    // 정수 범위 내에서 일차함수 식 5~6개 정의 (범위 [-4, 4]에 맞춤)
+    // 정수 범위 내에서 일차함수 식 정의 (확대된 격자 범위 [-2, 2]에 맞춤)
     const testLines = [
-      { a: 1, b: 1 },   // y = x + 1
-      { a: -1, b: 0 },  // y = -x
+      { a: 1, b: 0 },   // y = x
+      { a: -1, b: 1 },  // y = -x + 1
       { a: 2, b: -1 },  // y = 2x - 1
-      { a: -2, b: 2 },  // y = -2x + 2
-      { a: 3, b: 0 },   // y = 3x
-      { a: 0, b: -2 }   // y = -2 (기울기 0)
+      { a: -2, b: 0 },  // y = -2x
+      { a: 0, b: 1 }    // y = 1 (기울기 0)
     ];
 
     testLines.forEach(line => {
-      const xChoices = [-3, -2, -1, 0, 1, 2, 3];
+      const xChoices = [-2, -1, 0, 1, 2];
       xChoices.sort(() => Math.random() - 0.5);
       
       let count = 0;
@@ -666,7 +642,7 @@ class CockpitDbSimulator {
         const x = xChoices[i];
         const y = line.a * x + line.b;
         
-        if (y >= -4 && y <= 4) {
+        if (y >= -2 && y <= 2) {
           const coordKey = `${x},${y}`;
           if (!usedCoords.has(coordKey)) {
             usedCoords.add(coordKey);
@@ -684,9 +660,9 @@ class CockpitDbSimulator {
       }
     });
 
-    while (targets.length < 8) {
-      const x = Math.floor(Math.random() * 9) - 4; // -4 ~ 4
-      const y = Math.floor(Math.random() * 9) - 4; // -4 ~ 4
+    while (targets.length < 6) { // 격자가 작아졌으므로 별 개수도 6개 정도로 조정하여 지나친 밀집을 방지
+      const x = Math.floor(Math.random() * 5) - 2; // -2 ~ 2
+      const y = Math.floor(Math.random() * 5) - 2; // -2 ~ 2
       const coordKey = `${x},${y}`;
       if (!usedCoords.has(coordKey)) {
         usedCoords.add(coordKey);
@@ -851,7 +827,7 @@ class CockpitDbSimulator {
 
     if (this.isRealFirebase && this.currentUser) {
       // 내 로그인 문서 제거
-      this.db.collection("users").doc(this.currentUser.id).delete()
+      this.db.collection("waiting_room").doc(this.currentUser.id).delete()
         .then(() => console.log("🧹 [Firebase Firestore] Current user document deleted."))
         .catch(err => console.error("❌ [Firebase Firestore] Delete current user document error:", err));
     }

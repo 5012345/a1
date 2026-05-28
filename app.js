@@ -279,7 +279,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ==========================================
   // MATHEMATICAL HELPERS (GRID <-> SCREEN)
   // ==========================================
-  const gridRange = 5; // -5 to +5 (축소된 줌인 범위)
+  const gridRange = 3; // -3 to +3 (더 축소된 대폭 줌인 범위)
 
   function getCanvasCenter() {
     return { x: canvas.width / 2, y: canvas.height / 2 };
@@ -478,7 +478,7 @@ document.addEventListener("DOMContentLoaded", () => {
     state.mode = isPvE ? "pve" : "online";
 
     lobby.queueStatus.classList.remove("hidden");
-    lobby.statusText.textContent = isPvE ? "🤖 AI 가상 훈련선 대기열 연결 중..." : "📡 우주 실시간 연동 매칭 검색 중...";
+    lobby.statusText.textContent = isPvE ? "🤖 AI 가상 훈련선 대기열 연결 중..." : "📡 관리자의 매칭 시작을 기다리는 중입니다...";
     
     lobby.pveBtn.disabled = true;
     lobby.matchingBtn.disabled = true;
@@ -917,11 +917,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const center = getCanvasCenter();
 
-    // 1. Draw Grid Lines (더 밝고 선명한 슬레이트 네온 블루 격자선)
-    ctx.strokeStyle = "rgba(99, 102, 241, 0.35)";
-    ctx.lineWidth = 1;
-    ctx.font = "bold 11px Orbitron";
-    ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+    // 1. Draw Grid Lines (더 밝고 선명한 슬레이트 네온 블루 격자선 및 폰트 대폭 확대)
+    ctx.strokeStyle = "rgba(129, 140, 248, 0.75)"; // 밝은 인디고 네온
+    ctx.lineWidth = 2.5; // 격자선 두께 대폭 확대
+    ctx.font = "bold 20px Orbitron"; // 폰트 크기 대폭 확대 (11px -> 20px)
+    ctx.fillStyle = "rgba(255, 255, 255, 0.95)"; // 더욱 뚜렷하고 밝은 흰색
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
@@ -944,16 +944,16 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.stroke();
 
       // Tick Labels
-      // X labels
-      ctx.fillText(i, vLine.x, center.y + 14);
+      // X labels (축 숫자를 격자선 상에 크고 명확하게 표시)
+      ctx.fillText(i, vLine.x, center.y + 22);
       // Y labels
-      ctx.fillText(i, center.x - 14, hLine.y);
+      ctx.fillText(i, center.x - 22, hLine.y);
     }
 
-    // 2. Draw Principal Axes (선명한 네온 사이언 글로잉 축선)
+    // 2. Draw Principal Axes (선명한 네온 사이언 글로잉 축선 및 텍스트 대폭 확대)
     ctx.strokeStyle = "#00f3ff";
-    ctx.lineWidth = 3.5;
-    ctx.shadowBlur = 10;
+    ctx.lineWidth = 6.0; // 축선 두께 대폭 증가 (3.5 -> 6.0)
+    ctx.shadowBlur = 18; // 사이언 네온 글로우 효과 극대화
     ctx.shadowColor = "#00f3ff";
 
     // X-Axis
@@ -971,26 +971,28 @@ document.addEventListener("DOMContentLoaded", () => {
     // 그림자 효과 복원
     ctx.shadowBlur = 0;
 
-    // Axis Arrows
+    // Axis Arrows & Labels
     ctx.fillStyle = "#00f3ff";
+    ctx.font = "bold 24px Orbitron"; // 축 알파벳 폰트 크기 증대 (11px -> 24px)
+    
     // X arrow
     ctx.beginPath();
     ctx.moveTo(canvas.width, center.y);
-    ctx.lineTo(canvas.width - 10, center.y - 6);
-    ctx.lineTo(canvas.width - 10, center.y + 6);
+    ctx.lineTo(canvas.width - 16, center.y - 10);
+    ctx.lineTo(canvas.width - 16, center.y + 10);
     ctx.fill();
-    ctx.fillText("x", canvas.width - 15, center.y - 15);
+    ctx.fillText("x", canvas.width - 25, center.y - 25);
 
     // Y arrow
     ctx.beginPath();
     ctx.moveTo(center.x, 0);
-    ctx.lineTo(center.x - 6, 10);
-    ctx.lineTo(center.x + 6, 10);
+    ctx.lineTo(center.x - 10, 16);
+    ctx.lineTo(center.x + 10, 16);
     ctx.fill();
-    ctx.fillText("y", center.x + 15, 12);
+    ctx.fillText("y", center.x + 25, 25);
 
     // Origin label
-    ctx.fillText("O", center.x - 10, center.y + 12);
+    ctx.fillText("O", center.x - 20, center.y + 24);
 
     // 3. Draw Laser beams
     const now = Date.now();
@@ -1036,20 +1038,20 @@ document.addEventListener("DOMContentLoaded", () => {
       ctx.shadowColor = target.glowColor;
       ctx.fillStyle = target.glowColor;
 
-      // Draw Vector Star shape
-      drawVectorStar(0, 0, 5, 12, 5);
+      // Draw Vector Star shape (에너지 별 크기 2배 이상 확대: outer 12 -> 25, inner 5 -> 11)
+      drawVectorStar(0, 0, 5, 25, 11);
 
-      // Inner shiny core
+      // Inner shiny core (2배 이상 확대: outer 5 -> 11, inner 2.2 -> 5)
       ctx.shadowBlur = 0;
       ctx.fillStyle = "#ffffff";
-      drawVectorStar(0, 0, 5, 5, 2.2);
+      drawVectorStar(0, 0, 5, 11, 5);
 
       ctx.restore();
 
-      // Text coordinate tag above stars for educational readability
-      ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-      ctx.font = "bold 9px Outfit";
-      ctx.fillText(`(${target.x}, ${target.y})`, px.x, px.y - 18);
+      // Text coordinate tag above stars for educational readability (가독성을 위해 폰트 크기 확대 9px -> 18px 및 투명도 대폭 개선)
+      ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+      ctx.font = "bold 18px Outfit";
+      ctx.fillText(`(${target.x}, ${target.y})`, px.x, px.y - 34); // 별 크기에 맞춰 위로 더 이동
     });
 
     // 5. Draw Explosion particles
@@ -1184,7 +1186,7 @@ document.addEventListener("DOMContentLoaded", () => {
         window.spaceDb.fireLaser(state.roomId, state.p2.id, foundA, foundB, hitIds);
       }
 
-    }, Math.random() * 2000 + 7000); // 7s to 9s intervals
+    }, Math.random() * 5000 + 20000); // 20s to 25s intervals (플레이어 편의를 위해 AI 발사 주기를 대폭 하향 조정)
   }
 
   // ==========================================
