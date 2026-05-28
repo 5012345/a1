@@ -14,12 +14,13 @@
 // <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDX5TiB78wqtnzgwgOpfnEv7f0hcN0L4LU",
+  authDomain: "duru20401-b60fa.firebaseapp.com",
+  projectId: "duru20401-b60fa",
+  storageBucket: "duru20401-b60fa.firebasestorage.app",
+  messagingSenderId: "790407879385",
+  appId: "1:790407879385:web:5e870c62480531fb1ebcc8",
+  measurementId: "G-YC30724HMC"
 };
 
 // 초기화
