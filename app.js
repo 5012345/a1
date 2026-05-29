@@ -41,6 +41,8 @@ document.addEventListener("DOMContentLoaded", () => {
     successfulShots: 0
   };
 
+  let penaltyCooldownActive = false; // 미적중 시 레이저 충전 쿨다운 잠금 플래그
+
   // Particles for explosions
   let particles = [];
   let lasers = []; // Active laser beams to draw: { a, b, alpha, color, timestamp }
@@ -799,6 +801,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function validateFireButton() {
+    if (penaltyCooldownActive) {
+      constructor.fireBtn.setAttribute("disabled", "true");
+      constructor.fireBtn.classList.add("disabled");
+      return;
+    }
     const isReady = (state.selectedSlope !== null && state.selectedTranslation !== null);
     if (isReady) {
       constructor.fireBtn.removeAttribute("disabled");
@@ -813,7 +820,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // FIRE LASER & COLLISION MATH
   // ==========================================
   constructor.fireBtn.addEventListener("click", () => {
-    if (state.selectedSlope === null || state.selectedTranslation === null) return;
+    if (state.selectedSlope === null || state.selectedTranslation === null || penaltyCooldownActive) return;
     
     const a = state.selectedSlope;
     const b = state.selectedTranslation;
@@ -839,22 +846,34 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => alertMsg.classList.add("hidden"), 1000);
 
     // Find star hits
-    // ** 정수 범위 연산 매칭 검사 **
-    // y = ax + b 가 정수점 (x_s, y_s)를 정교하게 지나는지 확인합니다.
+    // ** 정수 범위 연산 매칭 검사 및 디버깅 강화 **
+    console.log("🎯 [충돌 감지 시작] 플레이어 레이저 발사! 수식: y = " + a + "x + (" + b + ")");
+    
     const hitIds = [];
     const hitStars = [];
 
     state.targets.forEach(target => {
       // Cartesian evaluation
       // target.x, target.y, a, b는 전부 정수이므로 a*x + b도 엄격한 정수 연산 범위에 떨어집니다!
-      const lineY = a * target.x + b;
+      const targetX = Number(target.x);
+      const targetY = Number(target.y);
+      const numA = Number(a);
+      const numB = Number(b);
+      
+      const lineY = numA * targetX + numB;
+      const errorDiff = Math.abs(targetY - lineY);
+      
+      console.log(`🔍 [충돌 감지 루프] 별 ID: ${target.id} | 별 좌표: (${targetX}, ${targetY}) | 계산된 lineY: ${lineY} | 오차: ${errorDiff}`);
       
       // Floating point tolerance (< 0.1) to allow neat visual overlaps
-      if (Math.abs(target.y - lineY) < 0.1) {
+      if (errorDiff < 0.1) {
         hitIds.push(target.id);
         hitStars.push(target);
+        console.log(`✅ [별 타격 성공] 타격된 별 ID: ${target.id} | 좌표: (${targetX}, ${targetY})`);
       }
     });
+
+    console.log(`🎯 [충돌 감지 종료] 총 타격된 별 개수: ${hitIds.length}`);
 
     if (hitIds.length > 0) {
       state.successfulShots++;
@@ -874,6 +893,32 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       
       state.starsExploded += hitIds.length;
+    } else {
+      // ❌ 미적중! 페널티 시스템 발동 (10초 잠금 및 시각 카운트다운 피드백)
+      console.log("❌ [미적중 페널티 발동] 어떠한 에너지 별도 타격하지 못했습니다. 10초간 레이저 발사가 차단됩니다.");
+      penaltyCooldownActive = true;
+      validateFireButton(); // 버튼 즉시 잠금
+
+      let timeLeft = 10;
+      constructor.fireBtn.textContent = `❌ 미적중! ${timeLeft}초 충전 대기...`;
+      constructor.fireBtn.style.background = "linear-gradient(135deg, #7f1d1d, #450a0a)";
+      constructor.fireBtn.style.color = "#fca5a5";
+
+      const cooldownInterval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft > 0) {
+          constructor.fireBtn.textContent = `❌ 미적중! ${timeLeft}초 충전 대기...`;
+        } else {
+          // 쿨다운 종료 및 원래 기능 복원
+          clearInterval(cooldownInterval);
+          penaltyCooldownActive = false;
+          constructor.fireBtn.textContent = "🚀 LASER FIRE";
+          constructor.fireBtn.style.background = "";
+          constructor.fireBtn.style.color = "";
+          validateFireButton(); // 충전 상태에 따라 원래 활성화 조건 평가
+          console.log("✅ [페널티 해제] 10초가 경과하여 레이저 사격 시스템이 재활성화되었습니다.");
+        }
+      }, 1000);
     }
 
     // Reset formula

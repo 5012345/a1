@@ -622,60 +622,34 @@ class CockpitDbSimulator {
   // 수학 문제 생성 시 모든 연산 결과가 "정수 범위"로 제한되는 타겟(별) 생성 함수
   generateIntegerTargets() {
     const targets = [];
-    const usedCoords = new Set();
+    const possibleCoords = [];
     
-    // 정수 범위 내에서 일차함수 식 정의 (확대된 격자 범위 [-2, 2]에 맞춤)
-    const testLines = [
-      { a: 1, b: 0 },   // y = x
-      { a: -1, b: 1 },  // y = -x + 1
-      { a: 2, b: -1 },  // y = 2x - 1
-      { a: -2, b: 0 },  // y = -2x
-      { a: 0, b: 1 }    // y = 1 (기울기 0)
-    ];
-
-    testLines.forEach(line => {
-      const xChoices = [-2, -1, 0, 1, 2];
-      xChoices.sort(() => Math.random() - 0.5);
-      
-      let count = 0;
-      for (let i = 0; i < xChoices.length; i++) {
-        const x = xChoices[i];
-        const y = line.a * x + line.b;
-        
-        if (y >= -2 && y <= 2) {
-          const coordKey = `${x},${y}`;
-          if (!usedCoords.has(coordKey)) {
-            usedCoords.add(coordKey);
-            targets.push({
-              id: "star_" + Math.random().toString(36).substr(2, 5),
-              x: x,
-              y: y,
-              points: 10,
-              glowColor: this.getRandomNeonColor()
-            });
-            count++;
-            if (count >= 2) break;
-          }
-        }
-      }
-    });
-
-    while (targets.length < 6) { // 격자가 작아졌으므로 별 개수도 6개 정도로 조정하여 지나친 밀집을 방지
-      const x = Math.floor(Math.random() * 5) - 2; // -2 ~ 2
-      const y = Math.floor(Math.random() * 5) - 2; // -2 ~ 2
-      const coordKey = `${x},${y}`;
-      if (!usedCoords.has(coordKey)) {
-        usedCoords.add(coordKey);
-        targets.push({
-          id: "star_" + Math.random().toString(36).substr(2, 5),
-          x: x,
-          y: y,
-          points: 10,
-          glowColor: this.getRandomNeonColor()
-        });
+    // [-2, 2] 범위 내의 모든 25개 정수 좌표쌍 나열
+    for (let x = -2; x <= 2; x++) {
+      for (let y = -2; y <= 2; y++) {
+        possibleCoords.push({ x: x, y: y });
       }
     }
-
+    
+    // Fisher-Yates 무작위 셔플로 골고루 분포하게 섞기
+    for (let i = possibleCoords.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [possibleCoords[i], possibleCoords[j]] = [possibleCoords[j], possibleCoords[i]];
+    }
+    
+    // 정확히 15개 좌표를 추출하여 별 객체 생성
+    const selectedCoords = possibleCoords.slice(0, 15);
+    selectedCoords.forEach(coord => {
+      targets.push({
+        id: "star_" + Math.random().toString(36).substr(2, 5),
+        x: coord.x,
+        y: coord.y,
+        points: 10,
+        glowColor: this.getRandomNeonColor()
+      });
+    });
+    
+    console.log("🪐 [별 생성 로그] 중복 없이 정수 좌표 상에 15개의 차원 에너지 별을 고르게 분산 배치 완료:", targets);
     return targets;
   }
 
@@ -686,7 +660,9 @@ class CockpitDbSimulator {
 
   // 실시간 방 상태 리스너 등록
   listenRoom(roomId, callback) {
-    if (this.isRealFirebase) {
+    const isLocalRoom = !roomId || String(roomId).startsWith("room_") && (!this.db || !this.isRealFirebase || this.currentRoom && this.currentRoom.id === roomId && this.currentRoom.isPvE);
+
+    if (this.isRealFirebase && !isLocalRoom) {
       this.roomUnsubscribe = this.db.collection("rooms").doc(roomId)
         .onSnapshot((doc) => {
           const data = doc.data();
@@ -705,7 +681,9 @@ class CockpitDbSimulator {
 
   // 점수 업데이트 및 발사 동기화
   updateRoomState(roomId, updatedFields) {
-    if (this.isRealFirebase) {
+    const isLocalRoom = !roomId || String(roomId).startsWith("room_") && (!this.db || !this.isRealFirebase || this.currentRoom && this.currentRoom.id === roomId && this.currentRoom.isPvE);
+
+    if (this.isRealFirebase && !isLocalRoom) {
       // Firebase 방 데이터 업데이트
       this.db.collection("rooms").doc(roomId).update(updatedFields)
         .then(() => {
@@ -723,7 +701,11 @@ class CockpitDbSimulator {
 
   // 레이저 발사 이벤트 기록 및 득점 계산
   fireLaser(roomId, playerId, a, b, hitIds) {
-    if (this.isRealFirebase) {
+    const isLocalRoom = !roomId || String(roomId).startsWith("room_") && (!this.db || !this.isRealFirebase || this.currentRoom && this.currentRoom.id === roomId && this.currentRoom.isPvE);
+    
+    console.log(`📡 [데이터 드라이버 디버그] fireLaser 시작. roomId: ${roomId}, playerId: ${playerId}, hits: ${hitIds}, isLocal: ${isLocalRoom}`);
+
+    if (this.isRealFirebase && !isLocalRoom) {
       console.log(`🚀 [Laser Fired] Player ID: ${playerId} | Slope: ${a} | Intercept: ${b} | Hits: ${hitIds}`);
 
       const roomRef = this.db.collection("rooms").doc(roomId);
@@ -745,8 +727,10 @@ class CockpitDbSimulator {
 
           shooter.score += addedScore;
           
-          // 맞은 별들 제거
-          const remainingTargets = roomData.targets.filter(t => !hitIds.includes(t.id));
+          // 맞은 별들 제거 (형변환 대조 강화 적용하여 안전성 보장)
+          const remainingTargets = roomData.targets.filter(t => !hitIds.map(String).includes(String(t.id)));
+
+          console.log(`✅ [Firebase 디버그] 별 타격 성공. 기존 별 개수: ${roomData.targets.length} -> 잔여 별 개수: ${remainingTargets.length}`);
 
           transaction.update(roomRef, {
             p1: roomData.p1,
@@ -770,7 +754,10 @@ class CockpitDbSimulator {
       });
 
     } else {
-      if (!this.currentRoom) return;
+      if (!this.currentRoom) {
+        console.warn("⚠️ [디버그] fireLaser 오류: 로컬 가상 방(currentRoom)이 비어있습니다.");
+        return;
+      }
 
       const isP1 = (this.currentRoom.p1.id === playerId);
       const shooter = isP1 ? this.currentRoom.p1 : this.currentRoom.p2;
@@ -782,7 +769,12 @@ class CockpitDbSimulator {
       else if (hitCount >= 3) addedScore = 40;
 
       shooter.score += addedScore;
-      const remainingTargets = this.currentRoom.targets.filter(t => !hitIds.includes(t.id));
+      
+      // 맞은 별들 제거 (형변환 대조 강화 적용하여 안전성 보장)
+      const remainingTargets = this.currentRoom.targets.filter(t => !hitIds.map(String).includes(String(t.id)));
+
+      console.log(`✅ [시뮬레이터 디버그] 별 타격 성공. 슈터: ${shooter.nickname}, 획득점수: +${addedScore}, 누적 점수: ${shooter.score}`);
+      console.log(`✅ [시뮬레이터 디버그] 기존 별 개수: ${this.currentRoom.targets.length} -> 잔여 별 개수: ${remainingTargets.length}`);
 
       const lastAction = {
         type: "fire",
